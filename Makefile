@@ -200,8 +200,43 @@ run-android: ## Android でビルド + エミュレータ起動 + インスト�
 	@cd $(APP) && php artisan native:run android --build=debug --no-tty --no-interaction
 	@grep -E "App launched|Gradle build failed" $(APP)/nativephp/android-build.log | tail -2
 
+.PHONY: libphp-ios
+libphp-ios: ## 自前 libphp.a を iOS (arm64) 向けにクロスビルド (Xcode 必須、初回 20-30 分)
+	@test -d /Applications/Xcode.app || (echo "❌ Xcode.app なし。Mac App Store からインストール"; exit 1)
+	@[[ "$$(xcode-select -p)" == *CommandLineTools* ]] && { \
+	  echo "❌ xcode-select が Command Line Tools を指してます:"; \
+	  echo "   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"; \
+	  exit 1; \
+	} || true
+	@cd $(BUILDER) && bash build-ios.sh
+
+.PHONY: install-libs-ios
+install-libs-ios: ## iOS 向けに生成した .a を NativePHP iOS プロジェクトに配置
+	@echo "=== iOS 向け libphp.a / 依存 .a を NativePHP に配置 ==="
+	@test -f $(BUILDER)/app/src/main/staticLibs/arm64-apple-ios/libphp.a || \
+	  (echo "❌ iOS 版 libphp.a 無し。make libphp-ios を先に実行"; exit 1)
+	@DEST=$(APP)/nativephp/ios/NativePHP/Frameworks; \
+	 test -d "$$DEST" || (echo "❌ $$DEST 無し。make setup が iOS で動いてる?"; exit 1); \
+	 for lib in libphp.a libssl.a libcrypto.a libonig.a libxml2.a; do \
+	   cp $(BUILDER)/app/src/main/staticLibs/arm64-apple-ios/$$lib $$DEST/ && \
+	   echo "   ✅ $$lib"; \
+	 done
+
+.PHONY: patch-ios
+patch-ios: ## PersistentPHPRuntime.swift の DB 設定を MySQL に切替 (patch ファイル必要、実動作検証後に提供)
+	@test -f $(APP)/patches/persistent-php-runtime-mysql.patch || \
+	  (echo "⚠  patches/persistent-php-runtime-mysql.patch が未作成。"; \
+	   echo "   Xcode 環境で native:install ios 後、PersistentPHPRuntime.swift を手動で書き換え、"; \
+	   echo "   diff を patches/ に保存する手順が必要 (setup-guide.md の iOS Step 4 参照)。"; exit 1)
+	@cd $(APP) && \
+	  if patch -p1 --dry-run -N < patches/persistent-php-runtime-mysql.patch >/dev/null 2>&1; then \
+	    patch -p1 < patches/persistent-php-runtime-mysql.patch && echo "✅ patch 適用"; \
+	  else \
+	    echo "✅ patch 既適用 (skip)"; \
+	  fi
+
 .PHONY: run-ios
-run-ios: ## iOS でビルド + シミュレータ起動
+run-ios: ## iOS でビルド + シミュレータ起動 (要 Xcode)
 	@test -d /Applications/Xcode.app || (echo "❌ Xcode.app なし。Mac App Store からインストール"; exit 1)
 	@test -d $(APP)/nativephp/ios || (echo "❌ nativephp/ios/ 無し。先に make setup"; exit 1)
 	@cd $(APP) && php artisan native:run ios --build=debug --no-tty --no-interaction
@@ -220,10 +255,9 @@ all-android: doctor setup libphp install-libs patch mysql-up emu-start run-andro
 	@echo "🎉 Android ビルド完了。エミュレータで /db-test 結果を確認してください。"
 
 .PHONY: all-ios
-all-ios: ## 🚧 iOS を一気通貫で起動 (Xcode 必須、未検証)
-	@test -d /Applications/Xcode.app || (echo "❌ Xcode.app なし"; exit 1)
-	@echo "⚠  iOS 対応は手順書レベル。詳細は nativephp-test/docs/setup-guide.md の iOS セクション参照"
-	@false
+all-ios: doctor setup libphp-ios install-libs-ios patch-ios mysql-up run-ios ## 🚀 iOS を一気通貫で起動 (Xcode 必須)
+	@echo ""
+	@echo "🎉 iOS ビルド完了。シミュレータで /db-test 結果を確認してください。"
 
 # --- クリーン ---------------------------------------------------------
 

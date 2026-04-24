@@ -4,7 +4,7 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13.6-FF2D20?logo=laravel&logoColor=white)
 ![NativePHP](https://img.shields.io/badge/NativePHP_Mobile-3.2-8892BF)
 ![Android](https://img.shields.io/badge/Android-arm64--v8a-3DDC84?logo=android&logoColor=white)
-![iOS](https://img.shields.io/badge/iOS-手順書のみ-lightgrey?logo=apple&logoColor=white)
+![iOS](https://img.shields.io/badge/iOS-ビルド_script_準備済-orange?logo=apple&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-27+-2496ED?logo=docker&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?logo=mysql&logoColor=white)
 ![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0.15-721412?logo=openssl&logoColor=white)
@@ -286,24 +286,28 @@ iOS は Android とは別系統 (Xcode + iOS SDK) でクロスビルドする必
 5. **`LaravelEnvironment.kt` 相当の Swift/Obj-C コード** (`PersistentPHPRuntime.swift`)
    内で `setenv("DB_CONNECTION", "mysql", 1)` を呼ぶようにパッチ
 
-### iOS 対応の着手手順 (推奨)
+### iOS 対応の着手手順 (Xcode 入れたら)
 
 ```bash
 # 1. Xcode インストール後:
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+brew install cocoapods
 
-# 2. NativePHP の iOS プロジェクト生成
-cd nativephp-test
-php artisan native:install ios
-cd nativephp/ios && pod install
-
-# 3. まず配布の libphp.a (SQLite 限定) で動作確認
-open NativePHP.xcworkspace
-# → Xcode でビルド → シミュレータで Laravel Welcome 確認
-
-# 4. 自前 iOS 向け libphp.a を作る (TODO: シェルスクリプト化する)
-# 5. 差し替えて MySQL 接続確認
+# 2. Make ターゲットで一気通貫:
+make all-ios
+#   ↑ 内部で:
+#     - make setup (NativePHP iOS プロジェクト生成)
+#     - make libphp-ios (自前 libphp.a クロスビルド、初回 20-30 分)
+#     - make install-libs-ios (生成 .a を Xcode プロジェクトに配置)
+#     - make patch-ios (PersistentPHPRuntime.swift の DB 設定 → mysql)
+#     - make mysql-up
+#     - make run-ios (Xcode ビルド + シミュレータ起動)
 ```
+
+**注意**: `make patch-ios` は `patches/persistent-php-runtime-mysql.patch` ファイルを
+要求します。これは Xcode 環境で `native:install ios` 実行後に
+`PersistentPHPRuntime.swift` を手動で書き換え → `diff` を取って作成する初期化作業が必要です。
+詳細は [setup-guide.md の iOS セクション](nativephp-test/docs/setup-guide.md) 参照。
 
 ### iOS 対応のリスク
 

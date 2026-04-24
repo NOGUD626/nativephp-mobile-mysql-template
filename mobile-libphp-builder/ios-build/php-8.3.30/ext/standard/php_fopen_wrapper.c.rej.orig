@@ -1,0 +1,9 @@
+@@ -318,7 +318,7 @@
+ 		}
+ 
+ #ifdef HAVE_UNISTD_H
+-		dtablesize = getdtablesize();
++		dtablesize = sysconf(_SC_OPEN_MAX);
+ #else
+ 		dtablesize = INT_MAX;
+ #endif

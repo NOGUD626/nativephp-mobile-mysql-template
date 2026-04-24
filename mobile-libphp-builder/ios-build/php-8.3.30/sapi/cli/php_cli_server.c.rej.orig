@@ -1,0 +1,12 @@
+@@ -112,10 +112,10 @@
+ 
+ #ifdef HAVE_FORK
+ # include <sys/wait.h>
+-static pid_t	 php_cli_server_master;
+ static pid_t	*php_cli_server_workers;
+ static zend_long php_cli_server_workers_max;
+ #endif
++static pid_t	 php_cli_server_master;
+ 
+ static zend_string* cli_concat_persistent_zstr_with_char(zend_string *old_str, const char *at, size_t length);
+ 

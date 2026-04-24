@@ -1,0 +1,7 @@
+ext/hash/sha3/generic64lc/KeccakP-1600-opt64.lo: \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/hash/sha3/generic64lc/KeccakP-1600-opt64.c \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/hash/sha3/generic64lc/brg_endian.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/hash/sha3/generic64lc/KeccakP-1600-opt64-config.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/hash/sha3/generic64lc/KeccakP-1600-64.macros \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/hash/sha3/generic64lc/KeccakP-1600-unrolling.macros \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/hash/sha3/generic64lc/SnP-Relaned.h

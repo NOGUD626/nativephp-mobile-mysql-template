@@ -1,0 +1,3 @@
+Zend/asm/jump_combined_sysv_macho_gas.lo: \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/asm/jump_combined_sysv_macho_gas.S \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/asm/jump_arm64_aapcs_macho_gas.S

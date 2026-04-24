@@ -1,0 +1,3 @@
+ext/standard/crypt_blowfish.lo: \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/standard/crypt_blowfish.c \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/ext/standard/crypt_blowfish.h

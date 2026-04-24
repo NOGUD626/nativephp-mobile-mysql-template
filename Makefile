@@ -21,6 +21,10 @@
 
 SHELL := /bin/bash
 
+# CocoaPods が Ruby 4.x 環境で UTF-8 不整合エラーを起こすのを回避
+export LANG := en_US.UTF-8
+export LC_ALL := en_US.UTF-8
+
 # プロジェクトルート (Makefile が置かれた場所)
 ROOT    := $(shell pwd)
 APP     := $(ROOT)/nativephp-test
@@ -200,6 +204,20 @@ run-android: ## Android でビルド + エミュレータ起動 + インスト�
 	@cd $(APP) && php artisan native:run android --build=debug --no-tty --no-interaction
 	@grep -E "App launched|Gradle build failed" $(APP)/nativephp/android-build.log | tail -2
 
+.PHONY: setup-pods
+setup-pods: ## iOS プロジェクトで pod install (NativePHP.xcworkspace 生成)
+	@test -d $(APP)/nativephp/ios || (echo "❌ nativephp/ios/ 無し。make setup-nativephp が先"; exit 1)
+	@cd $(APP)/nativephp/ios && pod install 2>&1 | tail -5
+
+.PHONY: setup-ios-runtime
+setup-ios-runtime: ## iOS シミュレータランタイムを DL (6GB、20 分)
+	@if xcrun simctl list runtimes 2>&1 | grep -q "iOS "; then \
+	  echo "✅ iOS ランタイム 既インストール"; \
+	else \
+	  echo "=== iOS シミュレータランタイム DL (6GB) ==="; \
+	  xcodebuild -downloadPlatform iOS; \
+	fi
+
 .PHONY: libphp-ios
 libphp-ios: ## 自前 libphp.a を iOS (arm64) 向けにクロスビルド (Xcode 必須、初回 20-30 分)
 	@test -d /Applications/Xcode.app || (echo "❌ Xcode.app なし。Mac App Store からインストール"; exit 1)
@@ -255,7 +273,7 @@ all-android: doctor setup libphp install-libs patch mysql-up emu-start run-andro
 	@echo "🎉 Android ビルド完了。エミュレータで /db-test 結果を確認してください。"
 
 .PHONY: all-ios
-all-ios: doctor setup libphp-ios install-libs-ios patch-ios mysql-up run-ios ## 🚀 iOS を一気通貫で起動 (Xcode 必須)
+all-ios: doctor setup setup-pods setup-ios-runtime libphp-ios install-libs-ios patch-ios mysql-up run-ios ## 🚀 iOS を一気通貫で起動 (Xcode 必須)
 	@echo ""
 	@echo "🎉 iOS ビルド完了。シミュレータで /db-test 結果を確認してください。"
 

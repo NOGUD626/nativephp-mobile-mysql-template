@@ -1,0 +1,25 @@
+# PoC 用: nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/LaravelEnvironment.kt
+# の DB_CONNECTION を sqlite → mysql に切り替える patch
+#
+# 適用: cd nativephp-test && patch -p1 < patches/laravel-environment-mysql.patch
+# 取消: cd nativephp-test && patch -p1 -R < patches/laravel-environment-mysql.patch
+#
+# 注意: native:install --force で再生成されたら patch を再適用する必要あり
+
+--- a/nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/LaravelEnvironment.kt
++++ b/nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/LaravelEnvironment.kt
+@@ -762,8 +762,12 @@
+                 // Laravel environment settings
+                 "APP_URL" to "http://127.0.0.1",
+                 "ASSET_URL" to "http://127.0.0.1/_assets",
+-                "DB_CONNECTION" to "sqlite",
+-                "DB_DATABASE" to "${appStorageDir.absolutePath}/persisted_data/database/database.sqlite",
++                "DB_CONNECTION" to "mysql",
++                "DB_HOST" to "10.0.2.2",
++                "DB_PORT" to "3306",
++                "DB_DATABASE" to "nativephp_test",
++                "DB_USERNAME" to "root",
++                "DB_PASSWORD" to "root",
+                 "CACHE_DRIVER" to "file",
+                 "CACHE_STORE" to "file",
+                 "QUEUE_CONNECTION" to "database",

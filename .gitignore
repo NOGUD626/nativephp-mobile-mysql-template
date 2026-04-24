@@ -1,0 +1,32 @@
+# Laravel
+nativephp-test/vendor/
+nativephp-test/node_modules/
+nativephp-test/.env
+nativephp-test/.env.backup
+nativephp-test/storage/logs/*.log
+nativephp-test/storage/framework/cache/*
+nativephp-test/storage/framework/sessions/*
+nativephp-test/storage/framework/views/*
+nativephp-test/storage/framework/testing/*
+nativephp-test/database/database.sqlite
+nativephp-test/bootstrap/cache/*
+nativephp-test/.phpunit.result.cache
+!nativephp-test/storage/framework/cache/.gitignore
+!nativephp-test/storage/framework/sessions/.gitignore
+!nativephp-test/storage/framework/views/.gitignore
+
+# NativePHP 生成物 (native:install で再生成される、巨大)
+nativephp-test/nativephp/
+
+# mobile-libphp-builder の Docker 出力 (make install-aarch64 で再生成)
+mobile-libphp-builder/app/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log

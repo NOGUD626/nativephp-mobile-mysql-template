@@ -1,5 +1,17 @@
 # NativePHP Mobile + MySQL Template
 
+![PHP](https://img.shields.io/badge/PHP-8.3.30-777BB4?logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-13.6-FF2D20?logo=laravel&logoColor=white)
+![NativePHP](https://img.shields.io/badge/NativePHP_Mobile-3.2-8892BF)
+![Android](https://img.shields.io/badge/Android-arm64--v8a-3DDC84?logo=android&logoColor=white)
+![iOS](https://img.shields.io/badge/iOS-手順書のみ-lightgrey?logo=apple&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-27+-2496ED?logo=docker&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?logo=mysql&logoColor=white)
+![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0.15-721412?logo=openssl&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Template](https://img.shields.io/badge/Template-Ready-blueviolet)
+![Status](https://img.shields.io/badge/Android_CRUD-✅_Verified-success)
+
 [NativePHP Mobile](https://nativephp.com/) (Laravel を Android/iOS アプリにパッケージする
 フレームワーク) に **MySQL 対応** を追加するための独立ビルド環境付きテンプレート。
 
@@ -41,8 +53,6 @@ sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
 
 ## クイックスタート
 
-このリポジトリを **テンプレートとして使う** 方法:
-
 ### 方法 A: GitHub の "Use this template" ボタン
 
 リポジトリ上部の緑色ボタンから派生リポジトリを作成。
@@ -50,10 +60,23 @@ sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
 ### 方法 B: 手動 clone
 
 ```bash
-git clone https://github.com/NOGU-LAB/nativephp-mobile-mysql-template.git my-project
+git clone https://github.com/NOGUD626/nativephp-mobile-mysql-template.git my-project
 cd my-project
 rm -rf .git && git init  # 履歴を切り離して新規プロジェクトに
 ```
+
+### 方法 C: Makefile で一気通貫 🚀
+
+```bash
+make doctor         # 環境診断 (php/composer/docker/sdk/ndk/avd/xcode)
+make all-android    # Composer install → libphp.a ビルド → 差し替え →
+                    #   Kotlin patch → MySQL 起動 → エミュ起動 → APK ビルド
+                    #   (初回 30〜60 分、Docker + NDK 初期ダウンロード含む)
+```
+
+成功するとエミュレータ画面に Laravel + MySQL の CRUD 結果が表示されます。
+
+利用可能な Makefile target 一覧は `make help` で確認。
 
 ## ゼロから動作させるまでの 8 ステップ
 

@@ -82,6 +82,75 @@ target_link_libraries(php_wrapper
 - 失敗時は Classic モード (毎回ブート) にフォールバック
 - 参考ソース: `vendor/nativephp/mobile/src/Runtime.php`
 
+## クロスコンパイルのレイヤー構造
+
+```
+                    ┌──────────────────────────────────┐
+                    │   ホスト (開発者 Mac Apple Silicon) │
+                    │   make / docker / gradle         │
+                    │   composer / artisan / adb       │
+                    └──────────┬───────────────────────┘
+                               │ 制御
+            ┌──────────────────┼──────────────────────┐
+            ▼                  ▼                      ▼
+  ┌──────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+  │ Docker コンテナ  │ │ Gradle/CMake    │ │ MySQL container │
+  │ Alpine 3.21      │ │ ホスト上で実行  │ │ mysql:8.4       │
+  │ (Rosetta x86_64) │ │                 │ │                 │
+  │                  │ │ NDK の clang で │ │ TCP 3306        │
+  │ NDK r27c x86_64  │ │ php_wrapper.so  │ │                 │
+  │  で clang-14+    │ │ を生成          │ │                 │
+  │  クロスコンパイル │ │ (AAR + APK)     │ │                 │
+  │                  │ │                 │ │                 │
+  │ 成果: libphp.a   │ │ 成果: APK (79MB)│ │                 │
+  └──────────┬───────┘ └────────┬────────┘ └─────────┬───────┘
+             │                  │                    │
+             │ docker cp         │ adb install       │ TCP
+             │ 経由で .a 出力    │                    │
+             ▼                  ▼                    ▼
+                    ┌──────────────────────┐
+                    │  Android エミュレータ  │
+                    │  (Pixel 6 Pro arm64) │
+                    │                      │
+                    │  libphp_wrapper.so   │
+                    │   ↓ JNI              │
+                    │  Laravel app         │
+                    │   ↓ mysqlnd          │
+                    │   → 10.0.2.2:3306    │
+                    └──────────────────────┘
+```
+
+**ホスト** / **ビルド環境 (Docker)** / **ターゲット (Android)** の 3 層構造。
+ホストと Docker は x86_64 (Rosetta)、ターゲットは arm64 という 2 段のアーキ変換が発生する。
+
+## PHP 拡張 → ネイティブライブラリ依存図
+
+```
+libphp.a (22MB 内に含まれる PHP 拡張)
+├── pdo_mysql ──┐
+├── mysqli     ─┤  ← 依存: libmysqlclient 不要 (mysqlnd は純 PHP 実装)
+├── mysqlnd    ─┘
+│
+├── pdo_sqlite ─┐
+├── sqlite3    ─┴─ 依存: libsqlite3.a  (2MB)
+│
+├── openssl    ─── 依存: libssl.a + libcrypto.a (OpenSSL 3.0.15)
+│
+├── mbstring   ─── 依存: libonig.a (Oniguruma 6.9.9)
+│
+├── dom        ─┐
+├── simplexml  ─┤
+├── xml        ─┼─ 依存: libxml2.a (2.12.7)
+├── xmlreader  ─┤
+├── xmlwriter  ─┘
+│
+├── hash, json, spl, pcre, session, reflection, date
+└── filter, fileinfo, random, password, ... (40+ 拡張)
+```
+
+CMake が `-Wl,--whole-archive` で全 .a を完全リンクすることで、libphp.a 内部の各拡張が
+必要とするシンボルがデバイス上で解決される。
+
 ## MySQL 対応に必要な 3 つの修正
 
 ### (1) `libphp.a` の再ビルド

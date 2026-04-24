@@ -126,23 +126,81 @@ php artisan native:run android --build=debug
 
 ## アーキテクチャ
 
+### ランタイム (静的構成図 ASCII)
+
 ```
- [Android 端末]
-  ┌──────────────────────────────────────────┐
-  │  APK                                      │
-  │  ├ Kotlin (LaravelEnvironment.kt で      │
-  │  │         DB_CONNECTION=mysql を setenv) │
-  │  └ libphp_wrapper.so (25 MB)              │
-  │      ├ libphp.a ← ★ 自前ビルド            │
-  │      ├ libsqlite3.a                       │
-  │      ├ libssl.a + libcrypto.a (OpenSSL 3) │
-  │      ├ libonig.a (Oniguruma)              │
-  │      └ libxml2.a                          │
-  └────────────┬─────────────────────────────┘
-               │ TCP: 10.0.2.2:3306
-               ▼
- [ホスト Mac]
-  Docker Compose: MySQL 8.4 コンテナ (:3306)
+ [Android 端末 / エミュレータ]                    [ホスト Mac]
+ ┌──────────────────────────────────────┐        ┌─────────────────┐
+ │  APK  (com.nogulab.nativephpdemo)     │        │  Docker Compose │
+ │  ┌──────────────────────────────┐    │        │                 │
+ │  │ WebView (Blade / Livewire)   │    │        │  MySQL 8.4      │
+ │  └──────────────┬───────────────┘    │        │  :3306          │
+ │                 │ HTTP loopback       │        │                 │
+ │  ┌──────────────▼───────────────┐    │        │  nativephp_test │
+ │  │ Kotlin 層                    │    │        │  DB             │
+ │  │  - MainActivity              │    │        └────────▲────────┘
+ │  │  - LaravelEnvironment.kt     │    │                 │
+ │  │    setenv DB_CONNECTION=mysql│    │                 │
+ │  └──────────────┬───────────────┘    │                 │
+ │                 │ JNI                 │                 │
+ │  ┌──────────────▼───────────────┐    │                 │
+ │  │ libphp_wrapper.so  (25 MB)   │    │                 │
+ │  │  ├ libphp.a    ★ 自前ビルド  │    │                 │
+ │  │  ├ libsqlite3.a              │    │                 │
+ │  │  ├ libssl.a + libcrypto.a    │    │                 │
+ │  │  ├ libonig.a  (Oniguruma)    │    │                 │
+ │  │  └ libxml2.a                 │    │                 │
+ │  └──────────────┬───────────────┘    │                 │
+ │                 │ pdo_mysql (mysqlnd) │                 │
+ │                 │                      │                 │
+ │                 └──────────────────────┼─────────────────┘
+ │                             TCP: 10.0.2.2:3306
+ └──────────────────────────────────────┘
+```
+
+### 起動シーケンス (Mermaid)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Emu as Android Emulator
+    participant K as Kotlin Layer
+    participant PHP as libphp_wrapper.so
+    participant L as Laravel App
+    participant MySQL as MySQL Container
+    User->>Emu: App 起動
+    Emu->>K: MainActivity.onCreate
+    K->>K: LaravelEnvironment setupEnvironment()
+    K->>PHP: setenv("DB_CONNECTION","mysql",1)
+    K->>PHP: setenv("DB_HOST","10.0.2.2",1)
+    K->>PHP: persistent_php_boot()
+    PHP->>L: Laravel kernel boot
+    User->>Emu: WebView requests "/"
+    Emu->>K: PHPSchemeHandler intercepts
+    K->>PHP: persistent_php_dispatch(GET /)
+    PHP->>L: Router::dispatch
+    L->>L: DB::connection()->getDriverName()
+    L->>MySQL: TCP SELECT VERSION()
+    MySQL-->>L: 8.4.9
+    L-->>PHP: JSON response
+    PHP-->>K: HTTP response
+    K-->>Emu: render in WebView
+    Emu-->>User: "🎉 driver: mysql"
+```
+
+### ビルドパイプライン (Mermaid)
+
+```mermaid
+flowchart LR
+    Start([make all-android]) --> Doctor[doctor<br/>環境診断]
+    Doctor --> Setup[setup<br/>composer install<br/>.env + key:generate<br/>native:install android]
+    Setup --> LibPHP[libphp<br/>Docker でクロスビルド<br/>NDK r27c + OpenSSL 3<br/>+ Oniguruma + libxml2<br/>+ PHP 8.3.30]
+    LibPHP --> Install[install-libs<br/>cp staticLibs/arm64-v8a/]
+    Install --> Patch[patch<br/>LaravelEnvironment.kt<br/>DB_CONNECTION=mysql]
+    Patch --> MySQL[mysql-up<br/>docker compose up]
+    MySQL --> Emu[emu-start<br/>Pixel_6_Pro_arm]
+    Emu --> Run[run-android<br/>gradle clean + APK]
+    Run --> Result([🎉 driver: mysql])
 ```
 
 詳細は [nativephp-test/docs/architecture.md](nativephp-test/docs/architecture.md)。

@@ -432,6 +432,170 @@ php artisan native:run android --build=debug --no-tty
 | `Connection refused 10.0.2.2:3306` | MySQL コンテナ未起動 |
 | `driver: "sqlite"` のまま | LaravelEnvironment.kt の patch 適用忘れ |
 
+## iOS 対応手順 (🚧 未検証)
+
+Android と iOS は **完全に別系統** でクロスビルドする必要がある。Docker + NDK は使えず、
+Mac ホスト上で **Xcode + iOS SDK** を直接使う。
+
+### iOS 対応に必要な追加環境
+
+```bash
+# Xcode.app (Mac App Store、約 12 GB) — Command Line Tools だけでは不可
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+# CocoaPods
+brew install cocoapods
+
+# iOS Simulator (Xcode 同梱) / または実機 + Apple Developer アカウント
+```
+
+### iOS Step 1: NativePHP iOS プロジェクトの生成
+
+```bash
+cd nativephp-test
+php artisan native:install ios
+cd nativephp/ios
+pod install
+open NativePHP.xcworkspace
+```
+
+Xcode でまず配布 `libphp.a` (SQLite 限定) のまま ⌘R で起動 → Laravel Welcome 確認。
+
+### iOS Step 2: 自前 iOS 向け libphp.a のクロスビルド
+
+**Docker 不可**。ホスト bash で直接:
+
+```bash
+mkdir ~/Desktop/ios-libphp-builder && cd ~/Desktop/ios-libphp-builder
+
+IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+CC_IOS=$(xcrun --sdk iphoneos -f clang)
+
+# --- OpenSSL 3.0.15 (iOS 向け) ---
+wget https://www.openssl.org/source/openssl-3.0.15.tar.gz
+tar -xf openssl-3.0.15.tar.gz
+cd openssl-3.0.15
+./Configure ios64-xcrun \
+  --prefix=$PWD/../openssl-ios \
+  no-shared no-tests no-asm
+make -j7 build_libs && make install_dev
+cd ..
+
+# --- Oniguruma 6.9.9 (iOS 向け) ---
+wget https://github.com/kkos/oniguruma/releases/download/v6.9.9/onig-6.9.9.tar.gz
+tar -xf onig-6.9.9.tar.gz
+cd onig-6.9.9
+./configure \
+  --host=arm-apple-darwin \
+  CC="$CC_IOS" \
+  CFLAGS="-arch arm64 -isysroot $IOS_SDK -miphoneos-version-min=16.0 -fPIC" \
+  --prefix=$PWD/../onig-ios \
+  --enable-static --disable-shared
+make -C src -j7 || true
+# libonig.a を手動配置 (Android と同じ libtool 迂回手法)
+mkdir -p ../onig-ios/{lib/pkgconfig,include}
+cp src/.libs/libonig.a ../onig-ios/lib/
+find . -name "oniguruma.h" -exec cp {} ../onig-ios/include/ \;
+find . -name "onig.pc" -exec cp {} ../onig-ios/lib/pkgconfig/ \;
+cd ..
+
+# --- libxml2 2.12.7 (iOS 向け) ---
+wget https://download.gnome.org/sources/libxml2/2.12/libxml2-2.12.7.tar.xz
+tar -xf libxml2-2.12.7.tar.xz
+cd libxml2-2.12.7
+./configure \
+  --host=arm-apple-darwin \
+  CC="$CC_IOS" \
+  CFLAGS="-arch arm64 -isysroot $IOS_SDK -miphoneos-version-min=16.0 -fPIC" \
+  --prefix=$PWD/../libxml2-ios \
+  --enable-static --disable-shared \
+  --without-python --without-iconv --without-icu --without-lzma --without-zlib
+make -j7 || true
+# 同様に手動配置
+cd ..
+
+# --- PHP 8.3.30 (iOS 向け) ---
+wget https://www.php.net/distributions/php-8.3.30.tar.gz
+tar -xf php-8.3.30.tar.gz
+mkdir build && cd build
+CFLAGS="-arch arm64 -isysroot $IOS_SDK -miphoneos-version-min=16.0 -fPIC" \
+CXXFLAGS="$CFLAGS" \
+LDFLAGS="-arch arm64 -isysroot $IOS_SDK" \
+ac_cv_func_getloadavg=no \
+PKG_CONFIG_PATH=$PWD/../openssl-ios/lib/pkgconfig:$PWD/../onig-ios/lib/pkgconfig:$PWD/../libxml2-ios/lib/pkgconfig \
+../php-8.3.30/configure \
+  --host=arm-apple-darwin \
+  --with-pic --enable-zts \
+  --disable-cli --disable-cgi --disable-phar --disable-phpdbg \
+  --enable-embed=static \
+  --enable-mbstring --with-openssl \
+  --with-libxml --enable-dom --enable-simplexml --enable-xml \
+  --enable-xmlreader --enable-xmlwriter \
+  --enable-mysqlnd --disable-mysqlnd-compression-support \
+  --with-pdo-mysql=mysqlnd --with-mysqli=mysqlnd \
+  --with-sqlite3 --with-pdo-sqlite \
+  CC="$CC_IOS"
+make libphp.la || true
+
+# libtool 迂回
+AR=$(xcrun --sdk iphoneos -f ar)
+$AR rcs install/libphp.a $(find . -name "*.o" -not -path "*/.libs/*" -not -path "*/libphp.lax/*")
+```
+
+### iOS Step 3: 生成された .a を Xcode プロジェクトに配置
+
+```bash
+DEST=~/Desktop/sandbox/nativephp-test/nativephp/ios/NativePHP/Frameworks/
+cp build/install/libphp.a $DEST/
+cp openssl-ios/lib/libssl.a $DEST/
+cp openssl-ios/lib/libcrypto.a $DEST/
+cp onig-ios/lib/libonig.a $DEST/
+cp libxml2-ios/lib/libxml2.a $DEST/
+```
+
+`NativePHP.xcodeproj/project.pbxproj` の Frameworks セクションで参照されていることを確認。
+
+### iOS Step 4: Swift 側の DB 設定書き換え
+
+`nativephp/ios/NativePHP/Bridge/PersistentPHPRuntime.swift` の `boot()` 関数内:
+
+```diff
+ setenv("LARAVEL_STORAGE_PATH", storageDir.appendingPathComponent("storage").path, 1)
+-setenv("DB_DATABASE", "\(databaseDir)/database.sqlite", 1)
++setenv("DB_CONNECTION", "mysql", 1)
++setenv("DB_HOST", "127.0.0.1", 1)    // シミュレータはホスト Mac と直接ネットワーク共有
++setenv("DB_PORT", "3306", 1)
++setenv("DB_DATABASE", "nativephp_test", 1)
++setenv("DB_USERNAME", "root", 1)
++setenv("DB_PASSWORD", "root", 1)
+```
+
+**重要**: iOS の `DB_HOST` 指定先
+
+| 実行環境 | ホスト指定 |
+|---|---|
+| iOS シミュレータ (macOS 上) | `127.0.0.1` (Mac のネットワークを共有) |
+| iOS 実機 (同 LAN) | ホスト Mac の LAN IP (例 `192.168.1.100`) |
+| iOS 実機 (本番サーバー) | 実際の MySQL サーバーの公開ホスト名 |
+
+Android エミュレータの `10.0.2.2` とは異なる点に注意。
+
+### iOS Step 5: ビルド & 実行
+
+```bash
+cd nativephp-test
+php artisan native:run ios --build=debug
+# または Xcode から NativePHP.xcworkspace を開いて ⌘R
+```
+
+### iOS 対応のリスク
+
+- **App Store 審査**: 外部 MySQL への直接 TCP 接続はプライバシー審査で弾かれる可能性高
+  - 必ず TLS 暗号化、証明書ピニング推奨
+  - `Info.plist` の `NSAppTransportSecurity` 設定必須
+- **シミュレータ/実機 ABI 差**: 両対応には XCFramework 化が必要
+- **現状**: 本 template では Android のみ実動作検証済、iOS は手順書のみ。検証協力者募集中
+
 ## 参考
 
 - [docs/poc-result.md](./poc-result.md) — PoC の成功レポート (結果詳細)

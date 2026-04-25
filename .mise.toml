@@ -1,0 +1,36 @@
+# プロジェクト固有のツールバージョン pinning (mise 経由)
+# https://mise.jdx.dev/
+#
+# clone 直後の使い方:
+#   1. brew install mise
+#   2. mise activate を shell rc に追加 (https://mise.jdx.dev/getting-started.html)
+#      eval "$(mise activate zsh)"   # zsh の場合
+#      eval "$(mise activate bash)"  # bash の場合
+#   3. cd <project> ← .mise.toml を検出して自動切替
+#   4. mise install ← 全ツールインストール
+#   5. make all-android  (or  make all-ios)
+#
+# Make の非対話 shell でも mise の shim 経由で正しい java/php が呼ばれるため、
+# SDKMAN 環境で発生していた gradle hung 問題が解消される。
+#
+# macOS Tahoe 26 + Apple Silicon で gradle daemon が hung する既知問題
+# (JDK-8359830 os.version 16.0 誤報) は corretto-21.0.8+ で fix 済み。
+
+[tools]
+# JDK: macOS Tahoe の os.version 誤報問題パッチ入り
+# (Corretto 21.0.6 以下では Gradle が toolchain 探索で hung する)
+java   = "corretto-21.0.8"
+
+# PHP: NativePHP 配布バイナリと同系列 (8.3.x)
+php    = "8.3"
+
+# Node: Vite 等 frontend 用 (任意)
+node   = "20"
+
+# Ruby: CocoaPods 1.16.2 と互換 (Ruby 4.x の UTF-8 normalize バグ回避)
+ruby   = "3.3"
+
+[env]
+# JAVA_HOME を mise が自動で export する
+# Make Recipe (非対話 shell) でも継承されるので gradlew が Java を見つけられる
+_.path = ["{{ env.HOME }}/.local/share/mise/shims"]

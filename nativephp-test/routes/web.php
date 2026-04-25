@@ -58,9 +58,18 @@ Route::get('/', function () {
         $log[] = "   at " . $e->getFile() . ':' . $e->getLine();
     }
 
-    return response('<pre style="font-size:14px;padding:16px;line-height:1.6">'
+    return response(
+        '<!DOCTYPE html><html><head>'
+        . '<meta charset="utf-8">'
+        . '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
+        . '<title>NativePHP Mobile + MySQL</title>'
+        . '<style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;'
+        . 'padding:max(env(safe-area-inset-top),60px) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}'
+        . 'pre{font-size:16px;padding:20px;line-height:1.7;white-space:pre-wrap;word-break:break-all;margin:0}</style>'
+        . '</head><body><pre>'
         . htmlspecialchars(implode("\n", $log))
-        . '</pre>');
+        . '</pre></body></html>'
+    );
 });
 
 Route::get('/db-test', function () {

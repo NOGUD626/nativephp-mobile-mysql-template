@@ -1,0 +1,16 @@
+--- a/nativephp/ios/NativePHP/Bridge/PersistentPHPRuntime.swift
++++ b/nativephp/ios/NativePHP/Bridge/PersistentPHPRuntime.swift
+@@ -63,7 +63,12 @@
+ 
+         setenv("LARAVEL_STORAGE_PATH", storageDir.appendingPathComponent("storage").path, 1)
+         setenv("VIEW_COMPILED_PATH", storageDir.appendingPathComponent("storage/framework/views").path, 1)
+-        setenv("DB_DATABASE", "\(databaseDir)/database.sqlite", 1)
++        setenv("DB_CONNECTION", "mysql", 1)
++        setenv("DB_HOST", "127.0.0.1", 1)
++        setenv("DB_PORT", "3306", 1)
++        setenv("DB_DATABASE", "nativephp_test", 1)
++        setenv("DB_USERNAME", "root", 1)
++        setenv("DB_PASSWORD", "root", 1)
+         setenv("NATIVEPHP_TEMPDIR", tempDir, 1)
+         setenv("NATIVEPHP_PLATFORM", "ios", 1)
+         setenv("REMOTE_ADDR", "0.0.0.0", 1)

@@ -1,0 +1,8 @@
+ext/hash/sha3/generic64lc/KeccakHash.lo: \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/sha3/generic64lc/KeccakHash.c \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/sha3/generic64lc/KeccakHash.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/sha3/generic64lc/KeccakSponge.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/sha3/generic64lc/align.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/sha3/generic64lc/KeccakP-1600-SnP.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/sha3/generic64lc/brg_endian.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/sha3/generic64lc/KeccakP-1600-opt64-config.h

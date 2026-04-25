@@ -1,0 +1,37 @@
+@@ -58,6 +58,10 @@
+ #endif
+ #endif
+ 
++#ifdef __ANDROID__
++int __dn_skipname(const unsigned char *, const unsigned char *);
++#endif
++
+ #ifndef MAXHOSTNAMELEN
+ #define MAXHOSTNAMELEN 255
+ #endif
+@@ -939,7 +939,7 @@
+ 
+ 			/* Skip QD entries, they're only used by dn_expand later on */
+ 			while (qd-- > 0) {
+-				n = dn_skipname(cp, end);
++				n = __dn_skipname(cp, end);
+ 				if (n < 0) {
+ 					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to parse DNS data received");
+ 					zval_dtor(return_value);
+@@ -1050,14 +1050,14 @@
+ 	cp = (u_char *)&ans + HFIXEDSZ;
+ 	end = (u_char *)&ans +i;
+ 	for (qdc = ntohs((unsigned short)hp->qdcount); qdc--; cp += i + QFIXEDSZ) {
+-		if ((i = dn_skipname(cp, end)) < 0 ) {
++		if ((i = __dn_skipname(cp, end)) < 0 ) {
+ 			php_dns_free_handle(handle);
+ 			RETURN_FALSE;
+ 		}
+ 	}
+ 	count = ntohs((unsigned short)hp->ancount);
+ 	while (--count >= 0 && cp < end) {
+-		if ((i = dn_skipname(cp, end)) < 0 ) {
++		if ((i = __dn_skipname(cp, end)) < 0 ) {
+ 			php_dns_free_handle(handle);
+ 			RETURN_FALSE;
+ 		}

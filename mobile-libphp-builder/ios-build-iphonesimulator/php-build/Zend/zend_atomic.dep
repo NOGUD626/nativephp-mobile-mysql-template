@@ -1,0 +1,9 @@
+Zend/zend_atomic.lo: \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/zend_atomic.c \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/zend_atomic.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/zend_portability.h \
+  Zend/zend_config.h Zend/../main/php_config.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/../TSRM/TSRM.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-build/main/php_config.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/zend_range_check.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build-iphonesimulator/php-8.3.30/Zend/zend_long.h

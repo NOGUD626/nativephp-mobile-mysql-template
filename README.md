@@ -1,5 +1,17 @@
 # NativePHP Mobile + MySQL Template
 
+![PHP](https://img.shields.io/badge/PHP-8.3.30-777BB4?logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-13.6-FF2D20?logo=laravel&logoColor=white)
+![NativePHP](https://img.shields.io/badge/NativePHP_Mobile-3.2-8892BF)
+![Android](https://img.shields.io/badge/Android-arm64--v8a-3DDC84?logo=android&logoColor=white)
+![iOS](https://img.shields.io/badge/iOS-ビルド_script_準備済-orange?logo=apple&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-27+-2496ED?logo=docker&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?logo=mysql&logoColor=white)
+![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0.15-721412?logo=openssl&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Template](https://img.shields.io/badge/Template-Ready-blueviolet)
+![Status](https://img.shields.io/badge/Android_CRUD-✅_Verified-success)
+
 [NativePHP Mobile](https://nativephp.com/) (Laravel を Android/iOS アプリにパッケージする
 フレームワーク) に **MySQL 対応** を追加するための独立ビルド環境付きテンプレート。
 
@@ -41,8 +53,6 @@ sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
 
 ## クイックスタート
 
-このリポジトリを **テンプレートとして使う** 方法:
-
 ### 方法 A: GitHub の "Use this template" ボタン
 
 リポジトリ上部の緑色ボタンから派生リポジトリを作成。
@@ -50,10 +60,23 @@ sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
 ### 方法 B: 手動 clone
 
 ```bash
-git clone https://github.com/NOGU-LAB/nativephp-mobile-mysql-template.git my-project
+git clone https://github.com/NOGUD626/nativephp-mobile-mysql-template.git my-project
 cd my-project
 rm -rf .git && git init  # 履歴を切り離して新規プロジェクトに
 ```
+
+### 方法 C: Makefile で一気通貫 🚀
+
+```bash
+make doctor         # 環境診断 (php/composer/docker/sdk/ndk/avd/xcode)
+make all-android    # Composer install → libphp.a ビルド → 差し替え →
+                    #   Kotlin patch → MySQL 起動 → エミュ起動 → APK ビルド
+                    #   (初回 30〜60 分、Docker + NDK 初期ダウンロード含む)
+```
+
+成功するとエミュレータ画面に Laravel + MySQL の CRUD 結果が表示されます。
+
+利用可能な Makefile target 一覧は `make help` で確認。
 
 ## ゼロから動作させるまでの 8 ステップ
 
@@ -103,23 +126,81 @@ php artisan native:run android --build=debug
 
 ## アーキテクチャ
 
+### ランタイム (静的構成図 ASCII)
+
 ```
- [Android 端末]
-  ┌──────────────────────────────────────────┐
-  │  APK                                      │
-  │  ├ Kotlin (LaravelEnvironment.kt で      │
-  │  │         DB_CONNECTION=mysql を setenv) │
-  │  └ libphp_wrapper.so (25 MB)              │
-  │      ├ libphp.a ← ★ 自前ビルド            │
-  │      ├ libsqlite3.a                       │
-  │      ├ libssl.a + libcrypto.a (OpenSSL 3) │
-  │      ├ libonig.a (Oniguruma)              │
-  │      └ libxml2.a                          │
-  └────────────┬─────────────────────────────┘
-               │ TCP: 10.0.2.2:3306
-               ▼
- [ホスト Mac]
-  Docker Compose: MySQL 8.4 コンテナ (:3306)
+ [Android 端末 / エミュレータ]                    [ホスト Mac]
+ ┌──────────────────────────────────────┐        ┌─────────────────┐
+ │  APK  (com.nogulab.nativephpdemo)     │        │  Docker Compose │
+ │  ┌──────────────────────────────┐    │        │                 │
+ │  │ WebView (Blade / Livewire)   │    │        │  MySQL 8.4      │
+ │  └──────────────┬───────────────┘    │        │  :3306          │
+ │                 │ HTTP loopback       │        │                 │
+ │  ┌──────────────▼───────────────┐    │        │  nativephp_test │
+ │  │ Kotlin 層                    │    │        │  DB             │
+ │  │  - MainActivity              │    │        └────────▲────────┘
+ │  │  - LaravelEnvironment.kt     │    │                 │
+ │  │    setenv DB_CONNECTION=mysql│    │                 │
+ │  └──────────────┬───────────────┘    │                 │
+ │                 │ JNI                 │                 │
+ │  ┌──────────────▼───────────────┐    │                 │
+ │  │ libphp_wrapper.so  (25 MB)   │    │                 │
+ │  │  ├ libphp.a    ★ 自前ビルド  │    │                 │
+ │  │  ├ libsqlite3.a              │    │                 │
+ │  │  ├ libssl.a + libcrypto.a    │    │                 │
+ │  │  ├ libonig.a  (Oniguruma)    │    │                 │
+ │  │  └ libxml2.a                 │    │                 │
+ │  └──────────────┬───────────────┘    │                 │
+ │                 │ pdo_mysql (mysqlnd) │                 │
+ │                 │                      │                 │
+ │                 └──────────────────────┼─────────────────┘
+ │                             TCP: 10.0.2.2:3306
+ └──────────────────────────────────────┘
+```
+
+### 起動シーケンス (Mermaid)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Emu as Android Emulator
+    participant K as Kotlin Layer
+    participant PHP as libphp_wrapper.so
+    participant L as Laravel App
+    participant MySQL as MySQL Container
+    User->>Emu: App 起動
+    Emu->>K: MainActivity.onCreate
+    K->>K: LaravelEnvironment setupEnvironment()
+    K->>PHP: setenv("DB_CONNECTION","mysql",1)
+    K->>PHP: setenv("DB_HOST","10.0.2.2",1)
+    K->>PHP: persistent_php_boot()
+    PHP->>L: Laravel kernel boot
+    User->>Emu: WebView requests "/"
+    Emu->>K: PHPSchemeHandler intercepts
+    K->>PHP: persistent_php_dispatch(GET /)
+    PHP->>L: Router::dispatch
+    L->>L: DB::connection()->getDriverName()
+    L->>MySQL: TCP SELECT VERSION()
+    MySQL-->>L: 8.4.9
+    L-->>PHP: JSON response
+    PHP-->>K: HTTP response
+    K-->>Emu: render in WebView
+    Emu-->>User: "🎉 driver: mysql"
+```
+
+### ビルドパイプライン (Mermaid)
+
+```mermaid
+flowchart LR
+    Start([make all-android]) --> Doctor[doctor<br/>環境診断]
+    Doctor --> Setup[setup<br/>composer install<br/>.env + key:generate<br/>native:install android]
+    Setup --> LibPHP[libphp<br/>Docker でクロスビルド<br/>NDK r27c + OpenSSL 3<br/>+ Oniguruma + libxml2<br/>+ PHP 8.3.30]
+    LibPHP --> Install[install-libs<br/>cp staticLibs/arm64-v8a/]
+    Install --> Patch[patch<br/>LaravelEnvironment.kt<br/>DB_CONNECTION=mysql]
+    Patch --> MySQL[mysql-up<br/>docker compose up]
+    MySQL --> Emu[emu-start<br/>Pixel_6_Pro_arm]
+    Emu --> Run[run-android<br/>gradle clean + APK]
+    Run --> Result([🎉 driver: mysql])
 ```
 
 詳細は [nativephp-test/docs/architecture.md](nativephp-test/docs/architecture.md)。
@@ -205,24 +286,28 @@ iOS は Android とは別系統 (Xcode + iOS SDK) でクロスビルドする必
 5. **`LaravelEnvironment.kt` 相当の Swift/Obj-C コード** (`PersistentPHPRuntime.swift`)
    内で `setenv("DB_CONNECTION", "mysql", 1)` を呼ぶようにパッチ
 
-### iOS 対応の着手手順 (推奨)
+### iOS 対応の着手手順 (Xcode 入れたら)
 
 ```bash
 # 1. Xcode インストール後:
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+brew install cocoapods
 
-# 2. NativePHP の iOS プロジェクト生成
-cd nativephp-test
-php artisan native:install ios
-cd nativephp/ios && pod install
-
-# 3. まず配布の libphp.a (SQLite 限定) で動作確認
-open NativePHP.xcworkspace
-# → Xcode でビルド → シミュレータで Laravel Welcome 確認
-
-# 4. 自前 iOS 向け libphp.a を作る (TODO: シェルスクリプト化する)
-# 5. 差し替えて MySQL 接続確認
+# 2. Make ターゲットで一気通貫:
+make all-ios
+#   ↑ 内部で:
+#     - make setup (NativePHP iOS プロジェクト生成)
+#     - make libphp-ios (自前 libphp.a クロスビルド、初回 20-30 分)
+#     - make install-libs-ios (生成 .a を Xcode プロジェクトに配置)
+#     - make patch-ios (PersistentPHPRuntime.swift の DB 設定 → mysql)
+#     - make mysql-up
+#     - make run-ios (Xcode ビルド + シミュレータ起動)
 ```
+
+**注意**: `make patch-ios` は `patches/persistent-php-runtime-mysql.patch` ファイルを
+要求します。これは Xcode 環境で `native:install ios` 実行後に
+`PersistentPHPRuntime.swift` を手動で書き換え → `diff` を取って作成する初期化作業が必要です。
+詳細は [setup-guide.md の iOS セクション](nativephp-test/docs/setup-guide.md) 参照。
 
 ### iOS 対応のリスク
 

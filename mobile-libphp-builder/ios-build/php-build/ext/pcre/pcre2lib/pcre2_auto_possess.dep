@@ -1,0 +1,9 @@
+ext/pcre/pcre2lib/pcre2_auto_possess.lo: \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/pcre/pcre2lib/pcre2_auto_possess.c \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/pcre/pcre2lib/config.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/main/php_compat.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-build/main/php_config.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/pcre/pcre2lib/pcre2_internal.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/pcre/pcre2lib/pcre2.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/pcre/pcre2lib/pcre2_ucp.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/pcre/pcre2lib/pcre2_intmodedep.h

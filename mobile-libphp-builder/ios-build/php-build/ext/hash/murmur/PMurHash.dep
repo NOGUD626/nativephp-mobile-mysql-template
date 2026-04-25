@@ -1,0 +1,4 @@
+ext/hash/murmur/PMurHash.lo: \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/murmur/PMurHash.c \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/murmur/PMurHash.h \
+  /Users/noguchi/Desktop/nativephp-mobile-mysql-template/mobile-libphp-builder/ios-build/php-8.3.30/ext/hash/murmur/endianness.h

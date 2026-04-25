@@ -68,15 +68,62 @@ rm -rf .git && git init  # 履歴を切り離して新規プロジェクトに
 ### 方法 C: Makefile で一気通貫 🚀
 
 ```bash
-make doctor         # 環境診断 (php/composer/docker/sdk/ndk/avd/xcode)
+make doctor         # 環境診断 (mise/php/composer/docker/sdk/ndk/avd/xcode)
 make all-android    # Composer install → libphp.a ビルド → 差し替え →
                     #   Kotlin patch → MySQL 起動 → エミュ起動 → APK ビルド
                     #   (初回 30〜60 分、Docker + NDK 初期ダウンロード含む)
+make all-ios        # 同様に iOS シミュレータで起動 (Xcode 必須)
 ```
 
 成功するとエミュレータ画面に Laravel + MySQL の CRUD 結果が表示されます。
 
 利用可能な Makefile target 一覧は `make help` で確認。
+
+## 推奨セットアップ — `mise` でツール pinning
+
+本テンプレートは **macOS Tahoe 26 + Apple Silicon の gradle 無限 hung 問題** ([Issue #2](https://github.com/NOGUD626/nativephp-mobile-mysql-template/issues/2)) を回避するため、[`mise`](https://mise.jdx.dev/) でプロジェクト固有のツールバージョンを `.mise.toml` で pinning しています。
+
+### 利用者の手順
+
+```bash
+# 1. mise 本体をインストール
+brew install mise
+
+# 2. shell に mise を統合 (zsh の場合)
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
+exec zsh
+
+# 3. プロジェクトに入って mise の信頼許可
+cd nativephp-mobile-mysql-template
+mise trust
+
+# 4. 各ツールを一括インストール (~5 分)
+mise install
+# ↑ Java corretto-21.0.8 (JDK-8359830 修正済)
+#   Node 20.20.2
+#   Ruby 3.3.11 (CocoaPods + Ruby 4.x UTF-8 バグ回避)
+```
+
+これで `cd nativephp-mobile-mysql-template/` するだけで自動的に正しい Java/Node/Ruby が選択されます。Make 非対話 shell でも shim 経由で正しい Java が使われるため、**Tahoe での gradle hung 問題が解消** します。
+
+PHP は `mise` の asdf-php プラグインが macOS で依存解決失敗するため `brew install php@8.3` を使用してください。
+
+## 開発履歴の自動キャプチャ — `entire` CLI
+
+本リポジトリは [entire.io](https://entire.io/) を有効化済み (`.entire/settings.local.json`)。
+
+`entire enable` 済の状態で Claude Code / Cursor / Gemini CLI / Codex / Copilot CLI / Factory AI Droid / OpenCode などの AI コーディングエージェントを使うと、**会話履歴・プロンプト・ファイル変更・トークン使用量が `entire/checkpoints/v1` ブランチに自動保存** されます。
+
+```bash
+brew install --cask entire
+entire enable             # プロジェクトで一度だけ
+entire status             # 状態確認
+entire sessions list      # 過去セッション一覧
+entire explain <id>       # AI セッションの要約
+entire rewind             # 過去のチェックポイントへ巻き戻し
+```
+
+`libphp.a` クロスビルドで何故その configure フラグを足したか、Kotlin patch の意図、MySQL 接続テストの試行錯誤など、**過去判断の履歴が永続化** され、派生プロジェクトでの再利用が容易になります。
 
 ## ゼロから動作させるまでの 8 ステップ
 

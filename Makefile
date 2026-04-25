@@ -205,40 +205,83 @@ run-android: ## Android でビルド + エミュレータ起動 + インスト�
 	@grep -E "App launched|Gradle build failed" $(APP)/nativephp/android-build.log | tail -2
 
 .PHONY: setup-pods
-setup-pods: ## iOS プロジェクトで pod install (NativePHP.xcworkspace 生成)
+setup-pods: ## iOS プロジェクトで pod install + Podfile 退避 (NativePHP の pod install timeout 回避)
 	@test -d $(APP)/nativephp/ios || (echo "❌ nativephp/ios/ 無し。make setup-nativephp が先"; exit 1)
-	@cd $(APP)/nativephp/ios && pod install 2>&1 | tail -5
+	@if [ -f $(APP)/nativephp/ios/Podfile ]; then \
+	  cd $(APP)/nativephp/ios && pod install 2>&1 | tail -3; \
+	  mv $(APP)/nativephp/ios/Podfile $(APP)/nativephp/ios/Podfile.disabled; \
+	  echo "✅ Podfile を退避 (NativePHP の再 pod install をスキップさせる)"; \
+	else \
+	  echo "✅ Podfile 既退避 (skip)"; \
+	fi
+
+.PHONY: setup-pod-wrapper
+setup-pod-wrapper: ## pod コマンドを LANG 強制 wrapper に置換 (sudo 必要、Ruby 4.x UTF-8 バグ回避)
+	@if grep -q "LANG=en_US.UTF-8" /opt/homebrew/bin/pod 2>/dev/null; then \
+	  echo "✅ pod wrapper 既設置 (skip)"; \
+	else \
+	  echo "⚠  /opt/homebrew/bin/pod を LANG 強制 wrapper に置換します (sudo パスワード要求)"; \
+	  printf '#!/bin/bash\nexec env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 /opt/homebrew/Cellar/cocoapods/1.16.2_2/libexec/bin/pod "$$@"\n' > /tmp/pod-wrapper; \
+	  chmod +x /tmp/pod-wrapper; \
+	  sudo mv /tmp/pod-wrapper /opt/homebrew/bin/pod && echo "✅ wrapper 配置完了" || echo "❌ wrapper 配置失敗"; \
+	fi
+
+.PHONY: setup-storage-dirs
+setup-storage-dirs: ## Laravel の storage/framework/* と bootstrap/cache を事前作成 (View Compiler エラー回避)
+	@for d in storage/framework/cache storage/framework/sessions storage/framework/views storage/framework/testing bootstrap/cache; do \
+	  mkdir -p $(APP)/$$d && touch $(APP)/$$d/.gitkeep; \
+	done
+	@echo "✅ storage/framework/* + bootstrap/cache 作成"
 
 .PHONY: setup-ios-runtime
-setup-ios-runtime: ## iOS シミュレータランタイムを DL (6GB、20 分)
+setup-ios-runtime: ## iOS シミュレータランタイムを DL (8GB、20-30 分)
 	@if xcrun simctl list runtimes 2>&1 | grep -q "iOS "; then \
 	  echo "✅ iOS ランタイム 既インストール"; \
 	else \
-	  echo "=== iOS シミュレータランタイム DL (6GB) ==="; \
+	  echo "=== iOS シミュレータランタイム DL (8GB) ==="; \
 	  xcodebuild -downloadPlatform iOS; \
 	fi
 
-.PHONY: libphp-ios
-libphp-ios: ## 自前 libphp.a を iOS (arm64) 向けにクロスビルド (Xcode 必須、初回 20-30 分)
-	@test -d /Applications/Xcode.app || (echo "❌ Xcode.app なし。Mac App Store からインストール"; exit 1)
-	@[[ "$$(xcode-select -p)" == *CommandLineTools* ]] && { \
+# Xcode インストール済かチェック (sudo なしで)
+define check_xcode
+	test -d /Applications/Xcode.app || (echo "❌ Xcode.app なし。Mac App Store からインストール"; exit 1)
+	[[ "$$(xcode-select -p)" == */Xcode.app/* ]] || { \
 	  echo "❌ xcode-select が Command Line Tools を指してます:"; \
 	  echo "   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"; \
 	  exit 1; \
-	} || true
-	@cd $(BUILDER) && bash build-ios.sh
+	}
+endef
+
+.PHONY: libphp-ios-device
+libphp-ios-device: ## ⚠ 実機 (arm64) 向け libphp.a クロスビルド (WIP: iOS device SDK で configure が hung する既知問題あり)
+	@echo "⚠  WIP: 実機向け iOS SDK では configure の AC_TRY_RUN が hung する既知問題があります。"
+	@echo "   App Store 配布が必要な場合のみ使用してください (Provisioning Profile も別途必要)。"
+	@echo "   シミュレータ動作確認には libphp-ios-sim で十分。"
+	@$(call check_xcode)
+	@cd $(BUILDER) && bash build-ios.sh iphoneos
+
+.PHONY: libphp-ios-sim
+libphp-ios-sim: ## iOS シミュレータ (arm64-apple-ios-simulator) 向け libphp.a クロスビルド (初回 20-30 分、検証済)
+	@$(call check_xcode)
+	@cd $(BUILDER) && bash build-ios.sh iphonesimulator
+
+.PHONY: libphp-ios
+libphp-ios: libphp-ios-sim ## iOS シミュレータ向け libphp.a をクロスビルド (実機向けは libphp-ios-device、WIP)
+	@echo "✅ iphonesimulator 向け libphp.a 完成"
 
 .PHONY: install-libs-ios
-install-libs-ios: ## iOS 向けに生成した .a を NativePHP iOS プロジェクトに配置
+install-libs-ios: ## iOS 向けに生成した .a を NativePHP iOS プロジェクトに配置 (両 SDK)
 	@echo "=== iOS 向け libphp.a / 依存 .a を NativePHP に配置 ==="
-	@test -f $(BUILDER)/app/src/main/staticLibs/arm64-apple-ios/libphp.a || \
-	  (echo "❌ iOS 版 libphp.a 無し。make libphp-ios を先に実行"; exit 1)
-	@DEST=$(APP)/nativephp/ios/NativePHP/Frameworks; \
-	 test -d "$$DEST" || (echo "❌ $$DEST 無し。make setup が iOS で動いてる?"; exit 1); \
-	 for lib in libphp.a libssl.a libcrypto.a libonig.a libxml2.a; do \
-	   cp $(BUILDER)/app/src/main/staticLibs/arm64-apple-ios/$$lib $$DEST/ && \
-	   echo "   ✅ $$lib"; \
-	 done
+	@for sdk in iphoneos iphonesimulator; do \
+	  if [ "$$sdk" = "iphoneos" ]; then ARCH=arm64-apple-ios; else ARCH=arm64-apple-ios-simulator; fi; \
+	  SRC=$(BUILDER)/app/src/main/staticLibs/$$ARCH; \
+	  DEST=$(APP)/nativephp/ios/Libraries/$$sdk; \
+	  if [ ! -f $$SRC/libphp.a ]; then echo "⚠  $$SRC/libphp.a 無し → make libphp-ios-$${sdk} 必要"; continue; fi; \
+	  test -d "$$DEST" || (echo "❌ $$DEST 無し。先に make setup-nativephp"; exit 1); \
+	  for lib in libphp.a libssl.a libcrypto.a libonig.a libxml2.a; do \
+	    cp $$SRC/$$lib $$DEST/ && echo "   ✅ $$sdk/$$lib"; \
+	  done; \
+	done
 
 .PHONY: patch-ios
 patch-ios: ## PersistentPHPRuntime.swift の DB 設定を MySQL に切替 (patch ファイル必要、実動作検証後に提供)
@@ -254,10 +297,21 @@ patch-ios: ## PersistentPHPRuntime.swift の DB 設定を MySQL に切替 (patch
 	  fi
 
 .PHONY: run-ios
-run-ios: ## iOS でビルド + シミュレータ起動 (要 Xcode)
-	@test -d /Applications/Xcode.app || (echo "❌ Xcode.app なし。Mac App Store からインストール"; exit 1)
+run-ios: ## iOS でビルド + シミュレータ起動 (UDID 自動取得、要 Xcode)
+	@$(call check_xcode)
 	@test -d $(APP)/nativephp/ios || (echo "❌ nativephp/ios/ 無し。先に make setup"; exit 1)
-	@cd $(APP) && php artisan native:run ios --build=debug --no-tty --no-interaction
+	@UDID=$$(xcrun simctl list devices available 2>&1 | grep -E "iPhone [0-9]+ \(" | head -1 | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}"); \
+	 [ -z "$$UDID" ] && (echo "❌ iPhone シミュレータ無し。make setup-ios-runtime 先実行"; exit 1) || true; \
+	 echo "=== UDID: $$UDID ==="; \
+	 cd $(APP) && php artisan native:run ios $$UDID --build=debug --no-tty --no-interaction
+
+.PHONY: screenshot-ios
+screenshot-ios: ## iOS シミュレータの画面キャプチャ取得
+	@UDID=$$(xcrun simctl list devices booted 2>&1 | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}" | head -1); \
+	 [ -z "$$UDID" ] && (echo "❌ booted シミュレータ無し"; exit 1) || true; \
+	 xcrun simctl io $$UDID screenshot /tmp/nativephp_ios_screenshot.png; \
+	 echo "✅ /tmp/nativephp_ios_screenshot.png"; \
+	 open /tmp/nativephp_ios_screenshot.png 2>/dev/null || true
 
 .PHONY: screenshot
 screenshot: ## Android エミュレータの画面キャプチャ取得
@@ -273,9 +327,9 @@ all-android: doctor setup libphp install-libs patch mysql-up emu-start run-andro
 	@echo "🎉 Android ビルド完了。エミュレータで /db-test 結果を確認してください。"
 
 .PHONY: all-ios
-all-ios: doctor setup setup-pods setup-ios-runtime libphp-ios install-libs-ios patch-ios mysql-up run-ios ## 🚀 iOS を一気通貫で起動 (Xcode 必須)
+all-ios: doctor setup setup-storage-dirs setup-pod-wrapper setup-pods setup-ios-runtime libphp-ios-sim install-libs-ios patch-ios mysql-up run-ios screenshot-ios ## 🚀 iOS を一気通貫で起動 (Xcode 必須)
 	@echo ""
-	@echo "🎉 iOS ビルド完了。シミュレータで /db-test 結果を確認してください。"
+	@echo "🎉 iOS ビルド完了。シミュレータで MySQL CRUD 結果を確認してください。"
 
 # --- クリーン ---------------------------------------------------------
 

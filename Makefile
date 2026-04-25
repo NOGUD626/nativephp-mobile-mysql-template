@@ -25,9 +25,24 @@ SHELL := /bin/bash
 export LANG := en_US.UTF-8
 export LC_ALL := en_US.UTF-8
 
-# SDKMAN は ~/.bashrc 経由で初期化されるが、Make の非対話シェルでは読まれない。
-# Java を Make Recipe からも見つけられるよう JAVA_HOME を明示する。
-ifneq ($(wildcard $(HOME)/.sdkman/candidates/java/current/bin/java),)
+# Java/PHP/Ruby/Node のバージョン pinning は mise 経由を推奨。
+# 本プロジェクトには .mise.toml が同梱されているので、利用者は:
+#   brew install mise
+#   eval "$(mise activate zsh)"   # zsh, ~/.zshrc に追加
+#   mise install                   # 全ツール install
+# で環境が揃う。
+#
+# mise の shim を Make Recipe (非対話 shell) からも参照できるよう PATH を通す。
+# SDKMAN フォールバックも残す (mise 未導入環境用)。
+#
+# 注意: macOS Tahoe 26 + Apple Silicon で gradle 無限 hung する既知問題は
+# JDK-8359830 (os.version 16.0 誤報) が原因。mise + corretto-21.0.8+ で解消。
+# 詳細: GitHub Issue #2
+ifneq ($(wildcard $(HOME)/.local/share/mise/shims/java),)
+# mise 経由 (推奨)
+export PATH := $(HOME)/.local/share/mise/shims:$(PATH)
+else ifneq ($(wildcard $(HOME)/.sdkman/candidates/java/current/bin/java),)
+# SDKMAN フォールバック
 export JAVA_HOME := $(HOME)/.sdkman/candidates/java/current
 export PATH := $(JAVA_HOME)/bin:$(PATH)
 endif
@@ -61,6 +76,7 @@ help:
 .PHONY: doctor
 doctor: ## 必要ツールが揃ってるか診断
 	@echo "=== 環境診断 ==="
+	@command -v mise >/dev/null    && echo "✅ mise      : $$(mise --version)"               || echo "⚠  mise      : 未インストール推奨 (brew install mise + .mise.toml で全ツール pinning)"
 	@command -v php >/dev/null     && echo "✅ php       : $$(php --version | head -1)"      || echo "❌ php       : 未インストール (brew install php@8.3)"
 	@command -v composer >/dev/null && echo "✅ composer  : $$(composer --version | head -1)" || echo "❌ composer  : 未インストール (brew install composer)"
 	@command -v docker >/dev/null  && echo "✅ docker    : $$(docker --version)"             || echo "❌ docker    : 未インストール (brew install --cask docker)"

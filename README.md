@@ -125,6 +125,16 @@ entire rewind             # 過去のチェックポイントへ巻き戻し
 
 `libphp.a` クロスビルドで何故その configure フラグを足したか、Kotlin patch の意図、MySQL 接続テストの試行錯誤など、**過去判断の履歴が永続化** され、派生プロジェクトでの再利用が容易になります。
 
+### auto-commit モードへの切替
+
+`entire status` のデフォルト表示は `manual-commit` です (git commit 操作のタイミングでチェックポイント記録)。
+`auto-commit` に切替えたい場合は **entire 公式 docs の commit-mode 章** を参照してください:
+
+- https://docs.entire.io/cli/commands
+- https://docs.entire.io/cli/configure
+
+CLI フラグ (`entire enable --help` / `entire configure --help`) には `--commit-mode` 系オプションが現状見当たらないため、対話 TUI (`entire configure`) または `.entire/settings.json` の直接編集が必要になる可能性があります。
+
 ## ゼロから動作させるまでの 8 ステップ
 
 詳細は [nativephp-test/docs/setup-guide.md](nativephp-test/docs/setup-guide.md) に記載。

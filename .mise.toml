@@ -21,8 +21,10 @@
 # (Corretto 21.0.6 以下では Gradle が toolchain 探索で hung する)
 java   = "corretto-21.0.8"
 
-# PHP: NativePHP 配布バイナリと同系列 (8.3.x)
-php    = "8.3"
+# PHP: brew install php@8.3 経由を推奨。
+# asdf-php (mise の php プラグイン) は macOS で iconv/openssl 等の依存解決が複雑なため
+# 本テンプレートでは Homebrew の php を使う運用を推奨。
+# php = "8.3"  # 本格的に mise で php を pin したい場合は uncomment
 
 # Node: Vite 等 frontend 用 (任意)
 node   = "20"

@@ -25,6 +25,13 @@ SHELL := /bin/bash
 export LANG := en_US.UTF-8
 export LC_ALL := en_US.UTF-8
 
+# SDKMAN は ~/.bashrc 経由で初期化されるが、Make の非対話シェルでは読まれない。
+# Java を Make Recipe からも見つけられるよう JAVA_HOME を明示する。
+ifneq ($(wildcard $(HOME)/.sdkman/candidates/java/current/bin/java),)
+export JAVA_HOME := $(HOME)/.sdkman/candidates/java/current
+export PATH := $(JAVA_HOME)/bin:$(PATH)
+endif
+
 # プロジェクトルート (Makefile が置かれた場所)
 ROOT    := $(shell pwd)
 APP     := $(ROOT)/nativephp-test
@@ -98,13 +105,13 @@ setup-env: setup-composer  ## vendor/ 必須なので setup-composer を先に�
 setup-nativephp: setup-env  ## .env 整ってないと native:install が動かない
 	@echo "=== NativePHP Android プロジェクト生成 ==="
 	@if [ ! -d $(APP)/nativephp/android ]; then \
-	  cd $(APP) && php artisan native:install android --no-interaction; \
+	  cd $(APP) && php artisan native:install android --no-interaction --no-force; \
 	else \
 	  echo "✅ nativephp/android/ 既存 (変更なし。再生成は make clean-nativephp)"; \
 	fi
 	@if [ -d /Applications/Xcode.app ] && [ ! -d $(APP)/nativephp/ios ]; then \
 	  echo "=== NativePHP iOS プロジェクト生成 ==="; \
-	  cd $(APP) && php artisan native:install ios --no-interaction; \
+	  cd $(APP) && php artisan native:install ios --no-interaction --no-force; \
 	elif [ -d /Applications/Xcode.app ]; then \
 	  echo "✅ nativephp/ios/ 既存 (変更なし)"; \
 	else \

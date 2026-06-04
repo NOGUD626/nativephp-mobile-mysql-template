@@ -93,7 +93,7 @@ doctor: ## 必要ツールが揃ってるか診断
 # --- setup (初期セットアップ) -----------------------------------------
 
 .PHONY: setup
-setup: setup-composer setup-env setup-nativephp ## Composer + NativePHP を初期化 (冪等)
+setup: setup-storage-dirs setup-composer setup-env setup-nativephp ## Composer + NativePHP を初期化 (冪等)
 
 .PHONY: setup-composer
 setup-composer:

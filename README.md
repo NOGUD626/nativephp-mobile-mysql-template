@@ -4,13 +4,15 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13.6-FF2D20?logo=laravel&logoColor=white)
 ![NativePHP](https://img.shields.io/badge/NativePHP_Mobile-3.2-8892BF)
 ![Android](https://img.shields.io/badge/Android-arm64--v8a-3DDC84?logo=android&logoColor=white)
-![iOS](https://img.shields.io/badge/iOS-ビルド_script_準備済-orange?logo=apple&logoColor=white)
+![iOS](https://img.shields.io/badge/iOS-arm64--simulator-000000?logo=apple&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-27+-2496ED?logo=docker&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?logo=mysql&logoColor=white)
 ![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0.15-721412?logo=openssl&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Template](https://img.shields.io/badge/Template-Ready-blueviolet)
-![Status](https://img.shields.io/badge/Android_CRUD-✅_Verified-success)
+![Android CRUD](https://img.shields.io/badge/Android_CRUD-✅_Verified-success)
+![iOS CRUD](https://img.shields.io/badge/iOS_Sim_CRUD-✅_Verified-success)
+![Remote MySQL](https://img.shields.io/badge/Remote_MySQL-✅_Verified-success)
 
 [NativePHP Mobile](https://nativephp.com/) (Laravel を Android/iOS アプリにパッケージする
 フレームワーク) に **MySQL 対応** を追加するための独立ビルド環境付きテンプレート。
@@ -23,11 +25,13 @@ Android NDK でクロスコンパイルした自前の `libphp.a` に差し替�
 
 | 項目 | 結果 |
 |---|---|
-| Android エミュレータから MySQL 8.4.9 接続 | ✅ (2026-04-24) |
+| Android エミュレータ (Pixel 6 Pro / API 34) から MySQL 8.4.9 接続 | ✅ (2026-04-24) |
+| **iOS Simulator (iPhone 17 / iOS 26.4) から MySQL 8.4.9 接続** | ✅ (2026-06-04) |
+| **Android / iOS から同一リモート MySQL 8.4.5 (LAN) 接続** | ✅ (2026-06-04) |
 | `php artisan migrate` (Laravel 13 標準 10 テーブル作成) | ✅ |
 | Eloquent CRUD (Create / Read / Update / Delete) | ✅ |
 | 日本語 utf8mb4 対応 | ✅ |
-| iOS 対応 | 🚧 手順書整備中 (Xcode.app インストール環境で検証予定) |
+| iOS 実機 (arm64-apple-ios) ビルド | 🚧 WIP (configure AC_TRY_RUN hung 既知問題) |
 
 ## 動作環境
 
@@ -107,33 +111,6 @@ mise install
 これで `cd nativephp-mobile-mysql-template/` するだけで自動的に正しい Java/Node/Ruby が選択されます。Make 非対話 shell でも shim 経由で正しい Java が使われるため、**Tahoe での gradle hung 問題が解消** します。
 
 PHP は `mise` の asdf-php プラグインが macOS で依存解決失敗するため `brew install php@8.3` を使用してください。
-
-## 開発履歴の自動キャプチャ — `entire` CLI
-
-本リポジトリは [entire.io](https://entire.io/) を有効化済み (`.entire/settings.local.json`)。
-
-`entire enable` 済の状態で Claude Code / Cursor / Gemini CLI / Codex / Copilot CLI / Factory AI Droid / OpenCode などの AI コーディングエージェントを使うと、**会話履歴・プロンプト・ファイル変更・トークン使用量が `entire/checkpoints/v1` ブランチに自動保存** されます。
-
-```bash
-brew install --cask entire
-entire enable             # プロジェクトで一度だけ
-entire status             # 状態確認
-entire sessions list      # 過去セッション一覧
-entire explain <id>       # AI セッションの要約
-entire rewind             # 過去のチェックポイントへ巻き戻し
-```
-
-`libphp.a` クロスビルドで何故その configure フラグを足したか、Kotlin patch の意図、MySQL 接続テストの試行錯誤など、**過去判断の履歴が永続化** され、派生プロジェクトでの再利用が容易になります。
-
-### auto-commit モードへの切替
-
-`entire status` のデフォルト表示は `manual-commit` です (git commit 操作のタイミングでチェックポイント記録)。
-`auto-commit` に切替えたい場合は **entire 公式 docs の commit-mode 章** を参照してください:
-
-- https://docs.entire.io/cli/commands
-- https://docs.entire.io/cli/configure
-
-CLI フラグ (`entire enable --help` / `entire configure --help`) には `--commit-mode` 系オプションが現状見当たらないため、対話 TUI (`entire configure`) または `.entire/settings.json` の直接編集が必要になる可能性があります。
 
 ## ゼロから動作させるまでの 8 ステップ
 
@@ -323,58 +300,79 @@ nativephp-mobile-mysql-template/
 - **XML**: dom, simplexml, xml, xmlreader, xmlwriter (libxml2 バックエンド)
 - **標準**: json, pcre, session, spl, reflection, date, filter, fileinfo, ほか
 
-## iOS 対応 (🚧 未検証)
+## iOS 対応 (✅ シミュレータ動作確認済 / 🚧 実機は WIP)
 
 iOS は Android とは別系統 (Xcode + iOS SDK) でクロスビルドする必要があり、
-現状の `mobile-libphp-builder/Dockerfile` (Android NDK 専用) では対応不可。
+`mobile-libphp-builder/Dockerfile` (Android NDK 専用) ではなく、ホスト macOS の
+`mobile-libphp-builder/build-ios.sh` でクロスビルドする。
+
+### 検証済み構成 (2026-06-04)
+
+| 項目 | 内容 |
+|---|---|
+| ターゲット | iPhone 17 (iOS 26.4) Simulator (arm64-apple-ios-simulator) |
+| Xcode | 26.4.1 (Build 17E202) |
+| libphp.a | 23 MB (PHP 8.3.30 + mysqlnd + pdo_mysql + openssl + mbstring + dom 等) |
+| 接続先 | ローカル MySQL 8.4.9 (Docker) / リモート MySQL 8.4.5 (LAN) 両方 ✅ |
+| CRUD + 日本語 utf8mb4 | ✅ |
 
 ### iOS 向けに必要なこと
 
-1. **Xcode.app の full インストール** (Mac App Store)
-2. **CocoaPods**: `brew install cocoapods`
-3. **自前 libphp.a の iOS 向けビルド**:
+1. **Xcode.app の full インストール** (Mac App Store、約 12 GB)
+2. **CocoaPods**: `mise install` の Ruby 3.3 で `gem install cocoapods` を推奨
+   (Homebrew Ruby 4.x は CocoaPods と非互換のため不可)
+3. **自前 libphp.a の iOS 向けビルド** (`build-ios.sh`):
    - Docker 不可 (Xcode は macOS ネイティブ)
-   - ホスト macOS の bash スクリプトで `./configure --host=arm-apple-darwin ...`
-   - `--enable-embed=static` (同じ)
-   - `CC=$(xcrun --sdk iphoneos -f clang)`
-   - `-isysroot $(xcrun --sdk iphoneos --show-sdk-path)`
+   - `./configure --host=arm-apple-darwin --enable-embed=static`
+   - `CC=$(xcrun --sdk iphonesimulator -f clang)`
+   - `-isysroot $(xcrun --sdk iphonesimulator --show-sdk-path)`
    - OpenSSL / Oniguruma / libxml2 も同様に iOS SDK で再ビルド
-4. **生成した `libphp.a` を `nativephp/ios/NativePHP/` の Xcode プロジェクトに配置**
-5. **`LaravelEnvironment.kt` 相当の Swift/Obj-C コード** (`PersistentPHPRuntime.swift`)
-   内で `setenv("DB_CONNECTION", "mysql", 1)` を呼ぶようにパッチ
+4. **生成した `libphp.a` を `nativephp/ios/Libraries/iphonesimulator/` に配置**
+5. **`PersistentPHPRuntime.swift` の `setupEnvironment()` 内**で
+   `setenv("DB_CONNECTION", "mysql", 1)` 等 6 行を MySQL 接続情報に書き換え
+   (`patches/persistent-php-runtime-mysql.patch` を `make patch-ios` で当てる)
 
-### iOS 対応の着手手順 (Xcode 入れたら)
+### iOS 動作までの最短手順
 
 ```bash
 # 1. Xcode インストール後:
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-brew install cocoapods
 
-# 2. Make ターゲットで一気通貫:
+# 2. mise + cocoapods 準備 (初回のみ):
+brew install mise
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc && exec zsh
+cd nativephp-mobile-mysql-template
+mise trust && mise install
+gem install cocoapods --no-document
+
+# 3. Make ターゲットで一気通貫:
 make all-ios
 #   ↑ 内部で:
-#     - make setup (NativePHP iOS プロジェクト生成)
-#     - make libphp-ios (自前 libphp.a クロスビルド、初回 20-30 分)
+#     - make setup            (NativePHP iOS プロジェクト生成)
+#     - make libphp-ios-sim   (シミュレータ向け libphp.a、リポジトリに同梱の成果物があれば即完了)
 #     - make install-libs-ios (生成 .a を Xcode プロジェクトに配置)
-#     - make patch-ios (PersistentPHPRuntime.swift の DB 設定 → mysql)
-#     - make mysql-up
-#     - make run-ios (Xcode ビルド + シミュレータ起動)
+#     - make patch-ios        (PersistentPHPRuntime.swift の DB 設定 → mysql)
+#     - make mysql-up         (Docker MySQL 起動)
+#     - make run-ios          (Xcode ビルド + シミュレータ起動)
 ```
 
-**注意**: `make patch-ios` は `patches/persistent-php-runtime-mysql.patch` ファイルを
-要求します。これは Xcode 環境で `native:install ios` 実行後に
-`PersistentPHPRuntime.swift` を手動で書き換え → `diff` を取って作成する初期化作業が必要です。
-詳細は [setup-guide.md の iOS セクション](nativephp-test/docs/setup-guide.md) 参照。
+`patches/persistent-php-runtime-mysql.patch` は既にリポジトリに同梱済み。
+`make libphp-ios-sim` は `ios-build-iphonesimulator/install/lib/` に成果物が
+コミット済みなら秒で完了、無ければ初回 20〜30 分のクロスビルドが走る。
 
-### iOS 対応のリスク
+### 実機 (arm64-apple-ios) ビルドの既知問題
 
-- **App Store 審査**: TCP で外部 MySQL サーバーに直接接続する構成は App Store のガイドライン
-  で制限される可能性がある (App Transport Security、暗号化通信必須)
-- **シミュレータと実機の ABI 差**: シミュレータ用 (x86_64 / arm64 Mac) と実機用 (arm64)
-  の 2 種類 `.a` が必要
-- **Bitcode / Code Signing**: 配布時に必要
+`make libphp-ios-device` (`build-ios.sh iphoneos`) は **configure 段階で
+AC_TRY_RUN が hung する既知問題** あり (WIP)。シミュレータ動作確認だけなら
+`libphp-ios-sim` で十分。実機検証および App Store 配布の検証は未着手。
 
-現状、iOS 対応手順は **文書のみ** で、実動作は未検証。検証協力者を募集中。
+### iOS 配布時のリスク
+
+- **App Store 審査**: TCP で外部 MySQL サーバーに直接接続する構成は
+  App Transport Security との関係で制限される可能性 (社内配布 / TestFlight 想定推奨)
+- **シミュレータと実機の ABI 差**: arm64-apple-ios-simulator と arm64-apple-ios で
+  2 種類の `.a` が必要 (`Libraries/iphoneos/` と `Libraries/iphonesimulator/`)
+- **Code Signing**: 実機配布時に必要 (Apple Developer アカウント)
 
 ## トラブルシュート
 
@@ -389,7 +387,10 @@ make all-ios
 | `Call to undefined function openssl_*` | OpenSSL 拡張が未同梱 |
 | `Connection refused 10.0.2.2:3306` | MySQL コンテナ未起動、Docker Desktop 再起動 |
 | Docker build exit 133 | Apple Silicon で x86_64 NDK → `--platform=linux/amd64` 必要 |
-| `driver: "sqlite"` のまま | `LaravelEnvironment.kt` の patch 適用忘れ |
+| `driver: "sqlite"` のまま | `LaravelEnvironment.kt` / `PersistentPHPRuntime.swift` の patch 適用忘れ |
+| `bootstrap/cache directory must be present` | `make setup-storage-dirs` を先に実行 (現 Makefile では `setup` の依存に含まれているので clean 後の一気通貫なら不要) |
+| `Gem::GemNotFoundException: can't find gem cocoapods` | Homebrew Ruby 4.x で `pod` が壊れている。`mise install` の Ruby 3.3 + `gem install cocoapods` を使う |
+| iOS `configure: error` で hung (実機 SDK) | `libphp-ios-device` の AC_TRY_RUN 既知問題。シミュレータ (`libphp-ios-sim`) で代替 |
 
 ## ライセンス
 
@@ -408,7 +409,8 @@ MIT License. 参考にした以下のプロジェクトも MIT:
 
 Issue / PR 歓迎。特に以下の分野で協力者を求めてます:
 
-- iOS 対応 (Xcode 環境での libphp.a ビルド手順確立)
+- iOS 実機 (arm64-apple-ios) 向け libphp.a ビルド (configure AC_TRY_RUN hung の解決)
+- App Store / TestFlight 配布検証 (ATS と外部 MySQL TCP 接続の整合)
 - OpenSSL / Oniguruma / libxml2 以外の依存ライブラリ追加 (libcurl, libsodium, libzip, ICU)
 - CI 化 (GitHub Actions + Linux aarch64 NDK でビルド高速化)
 - Linux aarch64 ホスト NDK 対応 (Rosetta 経由の遅さを解消)

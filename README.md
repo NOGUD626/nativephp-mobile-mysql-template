@@ -33,6 +33,50 @@ Android NDK でクロスコンパイルした自前の `libphp.a` に差し替�
 | 日本語 utf8mb4 対応 | ✅ |
 | iOS 実機 (arm64-apple-ios) ビルド | 🚧 WIP (configure AC_TRY_RUN hung 既知問題) |
 
+## このテンプレートの位置づけ — 公式の禁則と現場のギャップ
+
+NativePHP 公式は **MySQL / Postgres 対応を意図的に提供していない**。
+公式 docs ([Databases](https://nativephp.com/docs/mobile/3/concepts/databases)) より:
+
+> **Can I get MySQL/Postgres/other support?**
+>
+> No.
+>
+> SQLite being the only supported database driver is a **deliberate security decision** to prevent
+> developers from accidentally embedding production database credentials directly in mobile applications.
+
+理由として公式が挙げているのは: アプリは端末配布されて逆向きできる / DB 直結は認可レイヤを素通り /
+モバイルのネットワーク信頼性で長期コネクションが破綻しやすい / API-first (Laravel Sanctum 等で API 化) にすべき、の 4 点。
+**App Store / Google Play で広く配布するアプリならこの方針が完全に正しい**。本テンプレートを
+そのまま不特定多数向けアプリに使うのは推奨しない。
+
+一方で、公式が推奨する "API-first" は **「API サーバを誰が立てて、誰が運用するか」** という
+別の前提を要求する。クラウド業務 (AWS / GCP の隣に Laravel API を 1 つ足す) なら限界費用ゼロで
+ハマるが、**オンプレ業務 (現地サーバ室の MySQL に社内ツールから繋ぐ)** だと API サーバ運用が
+独立した負担として効いてくる: HTTPS 証明書、認証、ファイアウォール、監視、バックアップ、トラブル時の現地対応…。
+
+さらに本質的な問題として、**API バックエンドを前提にするなら NativePHP の最大の旨み
+("no web server required" / offline-first / Laravel スキルそのまま) が半分以上消える**。
+API 経由なら React Native + Laravel API でも Flutter + Laravel API でも同じことができる。
+NativePHP を選ぶ理由は「サーバ無しで端末配布だけで完結する」ことにあるはずで、推奨ルートを
+守ろうとすると WebServer (= API バックエンド) が必須になる、という矛盾がある。
+
+| 配布形態 | DB アクセス | NativePHP の旨み | 推奨度 |
+|---|---|---|---|
+| App Store / Google Play で広く配布 | API 経由 (公式推奨) | 半減 — React Native でも同じ | 公式 ✅ |
+| クラウド業務 (社内 SaaS 的) | API 経由 (公式推奨) | 半減 — でも運用コストは許容 | 公式 ✅ |
+| オンプレ業務 / 社内 LAN 閉域 | API 経由 | 半減 + API サーバ運用コスト | 採用ハードル高 |
+| **オンプレ業務 / 社内 LAN 閉域** | **MySQL 直結 (本テンプレ)** | **完全 — 端末配布だけで完結** | 公式 🚫 / 現場 ✅ |
+
+本テンプレートが想定するのは **最後の行 — オンプレ業務 + 社内 LAN 閉域 + MDM / TestFlight 内部配布**
+というニッチケース。社内 LAN という信頼境界の内側にいることで、公式が指摘するリスクのうち
+「逆向きでクレデンシャル漏洩」と「ネットワーク信頼性」は現実的に許容できる範囲に下がる。
+残るリスクは「公式が想定していない構成」であること自体だが、これは
+**「NativePHP の最大の旨みを残したまま業務システムを建てる」のリターン** とのトレードオフ。
+
+App Store 配布想定や、クラウド業務システム、エンドユーザー向けアプリでは
+**本テンプレートを使わず公式推奨の SQLite + API-first** に従ってください。
+
 ## 動作環境
 
 - **開発ホスト**: macOS Apple Silicon (Intel Mac は未検証)
